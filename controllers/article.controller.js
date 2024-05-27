@@ -10,9 +10,7 @@ exports.createArticle = async (req, res) => {
     try {
         if (req.file) {
             const imageBuffer = req.file.buffer;
-            console.log(`Image buffer size: ${imageBuffer.length} bytes`);
             imageBase64 = imageBuffer.toString('base64');
-            console.log(`Base64 length: ${imageBase64.length} characters`);
         }
 
         const query = `
@@ -104,37 +102,14 @@ exports.updateArticle = async (req, res) => {
 exports.deleteArticle = (req, res) => {
     const { id } = req.params;
 
-    const getCurrentImageBase64Query = 'SELECT imageBase64 FROM actualites WHERE id = ?';
-    connection.query(getCurrentImageBase64Query, [id], async (err, results) => {
+    const deleteQuery = 'DELETE FROM actualites WHERE id = ?';
+    connection.query(deleteQuery, [id], (err, results) => {
         if (err) {
             return res.status(500).json({ error: err.message });
         }
-        if (results.length === 0) {
+        if (results.affectedRows === 0) {
             return res.status(404).json({ message: 'Article not found' });
         }
-
-        const imageBase64 = results[0].imageBase64;
-        const imageBuffer = Buffer.from(imageBase64, 'base64');
-        const imageName = `image_${id}`;
-        const imagePath = path.join(__dirname, '../uploads', imageName);
-
-        const deleteQuery = 'DELETE FROM actualites WHERE id = ?';
-        connection.query(deleteQuery, [id], async (err, results) => {
-            if (err) {
-                return res.status(500).json({ error: err.message });
-            }
-            if (results.affectedRows === 0) {
-                return res.status(404).json({ message: 'Article not found' });
-            }
-
-            try {
-                await fs.unlink(imagePath);
-                console.log("Image file deleted successfully.");
-            } catch (unlinkErr) {
-                console.error("Failed to delete the image file:", unlinkErr.message);
-            }
-
-            res.status(204).send();
-        });
+        res.status(204).send();
     });
 };

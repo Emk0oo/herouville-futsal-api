@@ -5,6 +5,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path'); 
 const bodyParser = require('body-parser');
+const serverless = require('serverless-http');
 
 dotenv.config();
 
@@ -38,4 +39,4 @@ app.listen(port, () => {
   console.log(`Example app listening on port ${port}`);
 });
 
-module.exports = app;
+module.exports.handler = serverless(app);
