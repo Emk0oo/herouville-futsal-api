@@ -1,20 +1,35 @@
 const connection = require('../config/database');
 const path = require('path');
+const fs = require('fs').promises;
 
 // Create a new article
-exports.createArticle = (req, res) => {
+exports.createArticle = async (req, res) => {
     const { date, title, title2, title3, entete, content, content2, author } = req.body;
-    const imageURL = req.file ? `/${req.file.originalname}` : null; // Chemin de l'image téléchargée
-    const query = `
-        INSERT INTO actualites (date, imageURL, title, title2, title3, entete, content, content2, author) 
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
-    connection.query(query, [date, imageURL, title, title2, title3, entete, content, content2, author], (err, results) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
+    let imageBase64 = null;
+
+    try {
+        if (req.file) {
+            const imageBuffer = req.file.buffer;
+            console.log(`Image buffer size: ${imageBuffer.length} bytes`);
+            imageBase64 = imageBuffer.toString('base64');
+            console.log(`Base64 length: ${imageBase64.length} characters`);
         }
-        res.status(201).json({ id: results.insertId, date, imageURL, title, title2, title3, entete, content, content2, author });
-    });
+
+        const query = `
+            INSERT INTO actualites (date, imageBase64, title, title2, title3, entete, content, content2, author) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `;
+        connection.query(query, [date, imageBase64, title, title2, title3, entete, content, content2, author], (err, results) => {
+            if (err) {
+                console.error("Database query error:", err.message);
+                return res.status(500).json({ error: err.message });
+            }
+            res.status(201).json({ id: results.insertId, date, imageBase64, title, title2, title3, entete, content, content2, author });
+        });
+    } catch (error) {
+        console.error("Error processing request:", error.message);
+        res.status(500).json({ error: error.message });
+    }
 };
 
 // Get all articles
@@ -44,13 +59,53 @@ exports.getArticleById = (req, res) => {
 };
 
 // Update an article by ID
-exports.updateArticle = (req, res) => {
+exports.updateArticle = async (req, res) => {
     const { id } = req.params;
     const { date, title, title2, title3, entete, content, content2, author } = req.body;
 
-    // Fetch the current image URL from the database
-    const getCurrentImageURLQuery = 'SELECT imageURL FROM actualites WHERE id = ?';
-    connection.query(getCurrentImageURLQuery, [id], (err, results) => {
+    try {
+        const getCurrentImageBase64Query = 'SELECT imageBase64 FROM actualites WHERE id = ?';
+        const [currentImageResult] = await connection.promise().query(getCurrentImageBase64Query, [id]);
+        if (currentImageResult.length === 0) {
+            return res.status(404).json({ message: 'Article not found' });
+        }
+
+        let imageBase64 = currentImageResult[0].imageBase64;
+
+        if (req.file) {
+            const imageBuffer = req.file.buffer;
+            imageBase64 = imageBuffer.toString('base64');
+        }
+
+        const query = `
+            UPDATE actualites 
+            SET date = ?, imageBase64 = ?, title = ?, title2 = ?, title3 = ?, entete = ?, content = ?, content2 = ?, author = ?
+            WHERE id = ?
+        `;
+        const params = [date, imageBase64, title, title2, title3, entete, content, content2, author, id];
+
+        connection.query(query, params, (err, results) => {
+            if (err) {
+                console.error("Database query error:", err.message);
+                return res.status(500).json({ error: err.message });
+            }
+            if (results.affectedRows === 0) {
+                return res.status(404).json({ message: 'Article not found' });
+            }
+            res.status(200).json({ id, date, title, title2, title3, entete, content, content2, author, imageBase64 });
+        });
+    } catch (error) {
+        console.error("Error processing request:", error.message);
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Delete an article by ID
+exports.deleteArticle = (req, res) => {
+    const { id } = req.params;
+
+    const getCurrentImageBase64Query = 'SELECT imageBase64 FROM actualites WHERE id = ?';
+    connection.query(getCurrentImageBase64Query, [id], async (err, results) => {
         if (err) {
             return res.status(500).json({ error: err.message });
         }
@@ -58,43 +113,28 @@ exports.updateArticle = (req, res) => {
             return res.status(404).json({ message: 'Article not found' });
         }
 
-        const currentImageURL = results[0].imageURL;
+        const imageBase64 = results[0].imageBase64;
+        const imageBuffer = Buffer.from(imageBase64, 'base64');
+        const imageName = `image_${id}`;
+        const imagePath = path.join(__dirname, '../uploads', imageName);
 
-        let imageURL = currentImageURL; // Default to current image URL
-        if (req.file) {
-            imageURL = `/${req.file.originalname}`; // Use new image URL if provided
-        }
-
-        const query = `
-            UPDATE actualites 
-            SET date = ?, imageURL = ?, title = ?, title2 = ?, title3 = ?, entete = ?, content = ?, content2 = ?, author = ?
-            WHERE id = ?
-        `;
-        const params = [date, imageURL, title, title2, title3, entete, content, content2, author, id];
-
-        connection.query(query, params, (err, results) => {
+        const deleteQuery = 'DELETE FROM actualites WHERE id = ?';
+        connection.query(deleteQuery, [id], async (err, results) => {
             if (err) {
                 return res.status(500).json({ error: err.message });
             }
             if (results.affectedRows === 0) {
                 return res.status(404).json({ message: 'Article not found' });
             }
-            res.status(200).json({ id, date, title, title2, title3, entete, content, content2, author, imageURL });
-        });
-    });
-};
 
-// Delete an article by ID
-exports.deleteArticle = (req, res) => {
-    const { id } = req.params;
-    const query = 'DELETE FROM actualites WHERE id = ?';
-    connection.query(query, [id], (err, results) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
-        if (results.affectedRows === 0) {
-            return res.status(404).json({ message: 'Article not found' });
-        }
-        res.status(204).send();
+            try {
+                await fs.unlink(imagePath);
+                console.log("Image file deleted successfully.");
+            } catch (unlinkErr) {
+                console.error("Failed to delete the image file:", unlinkErr.message);
+            }
+
+            res.status(204).send();
+        });
     });
 };
