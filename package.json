@@ -4,7 +4,7 @@
   "description": "api futsal",
   "main": "api.js",
   "scripts": {
-    "start": "node api.js"
+    "start": "npm install && node api.js"
   },
   "author": "",
   "license": "ISC",
