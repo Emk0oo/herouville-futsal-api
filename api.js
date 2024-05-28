@@ -1,16 +1,16 @@
 const express = require('express');
-const app = express();
-const port = 4000;
 const cors = require('cors');
 const dotenv = require('dotenv');
-const path = require('path'); 
+const path = require('path');
 const bodyParser = require('body-parser');
 const serverless = require('serverless-http');
 
 dotenv.config();
 
-app.use(express.json());
+const app = express();
+const port = process.env.PORT || 4000;
 
+app.use(express.json());
 app.use(bodyParser.json({ limit: '10mb' })); // Adjust limit as necessary
 app.use(bodyParser.urlencoded({ limit: '10mb', extended: true })); // Adjust limit as necessary
 
@@ -35,8 +35,11 @@ app.use('/payment', require('./routes/payment.route.js'));
 // app.use('/player', require('./routes/player.route.js'));
 // app.use('/calendar', require('./routes/calendar.route.js'));
 
-app.listen(port, () => {
-  console.log(`Example app listening on port ${port}`);
-});
+if (require.main === module) {
+  app.listen(port, () => {
+    console.log(`Example app listening on port ${port}`);
+  });
+}
 
+module.exports = app;
 module.exports.handler = serverless(app);

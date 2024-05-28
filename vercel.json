@@ -1,0 +1,27 @@
+{
+    "version": 2,
+    "builds": [
+      {
+        "src": "api.js",
+        "use": "@vercel/node"
+      }
+    ],
+    "routes": [
+      {
+        "src": "/(.*)",
+        "dest": "/api.js"
+      }
+    ],
+    "env": {
+      "NODE_ENV": "production",
+      "DB_HOST": "futsal.cf8o886cwv78.eu-north-1.rds.amazonaws.com",
+      "DB_USER": "admin",
+      "DB_PASSWORD": "mdsdatabase",
+      "DB_NAME": "futsal",
+      "DB_PORT": "3306",
+      "JWT_SECRET": "6e334c87d48a596e9d04db4ac2c9ea6f6896e49a17ebeabedeae81773c243aec",
+      "MAILER_EMAIL": "herouville.futsal.bot@gmail.com",
+      "MAILER_PASSWORD": "pzry mnsy mmgq fhhy"
+    }
+  }
+  
