@@ -2,6 +2,10 @@
 
 This API is designed for managing a Futsal club's operations, including user authentication, articles management, product management, and payment processing.
 
+You can find in database collection the admin user, here the credentials: 
+admin@root.fr	
+adminmdp
+
 ## Table of Contents
 
 - [Features](#features)
